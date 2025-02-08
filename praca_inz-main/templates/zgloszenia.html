@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podgląd zgłoszeń</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        #map {
+            height: 500px;
+            border-radius: 5px;
+            margin: 20px auto;
+        }
+        ul {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Podgląd zgłoszeń</h1>
+    <div id="map"></div>
+
+    <h2 style="margin-top: 20px;">Lista zgłoszeń</h2>
+    <ul id="lista-zgloszen" style="list-style: none; padding: 0;"></ul>
+
+    <script>
+        var map = L.map('map').setView([51.107883, 17.038538], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        var zgloszenia = {{ zgloszenia | tojson | safe }};
+        console.log("Pobrane zgłoszenia:", zgloszenia);
+
+        // Sortowanie zgłoszeń od najnowszych do najstarszych
+        zgloszenia.sort((a, b) => new Date(b[2]) - new Date(a[2]));
+
+        // Dodawanie markerów do mapy
+        zgloszenia.forEach(function(zgloszenie) {
+            var lokalizacja = zgloszenie[9];
+            if (lokalizacja && lokalizacja.startsWith("POINT")) {
+                var coords = lokalizacja.match(/POINT\((.*?) (.*?)\)/);
+                if (coords) {
+                    var lng = parseFloat(coords[1]);
+                    var lat = parseFloat(coords[2]);
+
+                    var popupContent = `
+                        <b>Poziom wody:</b> ${zgloszenie[4] || "Brak"} <br>
+                        <b>Dokładny pomiar:</b> ${zgloszenie[5] || "Brak"} [m] <br>
+                        <b>Data pomiaru:</b> ${zgloszenie[2]} <br>
+                        <b>Dojście:</b> ${zgloszenie[6]} <br>
+                        <img src="https://storagepunkty2025.blob.core.windows.net/zdjecia/${zgloszenie[10]}"
+                            alt="Miniaturka zdjęcia"
+                            style="max-width:150px; cursor:pointer;"
+                            onclick="otworzZdjecie('${zgloszenie[10]}')">
+                    `;
+                    L.marker([lat, lng]).addTo(map).bindPopup(popupContent);
+                } else {
+                    console.error("bledne parsowanie lokalizacji:", lokalizacja);
+                }
+            }
+        });
+
+        function otworzZdjecie(nazwaPliku) {
+            var url = 'https://storagepunkty2025.blob.core.windows.net/zdjecia/' + nazwaPliku;
+            window.open(url, '_blank');
+        }
+
+        // Generowanie listy zgłoszeń pod mapą
+        var listaZgloszen = document.getElementById('lista-zgloszen');
+        zgloszenia.forEach(function(zgloszenie) {
+            var listItem = document.createElement('li');
+            listItem.style.cssText = "margin: 10px 0; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 5px;";
+
+            listItem.innerHTML = `
+                <b>Data pomiaru:</b> ${zgloszenie[2]} <br>
+                <b>Poziom wody:</b> ${zgloszenie[4]} <br>
+                <b>Dokładny pomiar:</b> ${zgloszenie[5] || "Brak"} [m] <br>
+                <b>Dojście:</b> ${zgloszenie[6]} <br>
+            `;
+            listaZgloszen.appendChild(listItem);
+        });
+    </script>
+</body>
+</html>
